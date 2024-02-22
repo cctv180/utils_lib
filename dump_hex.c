@@ -43,7 +43,7 @@ void dump_hex(const void *buf, uint32_t size, uint32_t number)
     printf("\r\n%s%s%s\r\n", TXT_OFFSET, hex_table, TXT_ASCII); // hex table
     printf("== base address 0x%08X length %d ==\r\n", (uint32_t)buffer, size);
 
-        for (uint32_t i = 0; i < size; i += number)
+    for (uint32_t i = 0; i < size; i += number)
     {
         printf("%08X: ", i);
 
@@ -74,3 +74,72 @@ void dump_hex(const void *buf, uint32_t size, uint32_t number)
         printf("\r\n");
     }
 }
+
+/**
+ * 使用指定的值填充内存块。
+ *
+ * @param ptr 指向要填充的内存块的指针。
+ * @param value 要填充的值，可以是8位、16位、32位或64位。
+ * @param num 要填充值的数量。
+ * @param size 填充值多少字节。
+ * @return void
+ */
+void memfill(void *ptr, uint64_t value, size_t num, size_t size)
+{
+    unsigned char *p = (unsigned char *)ptr; // 转换指针以便逐字节操作
+    while (num-- > 0)
+    { // 遍历每个值
+        for (size_t j = 0; j < size; ++j)
+        {                                             // 遍历每个值的每个字节
+            *p++ = (unsigned char)(value >> (j * 8)); // 从value中提取字节并填充
+        }
+    }
+}
+
+#if 1               // DEBUG_MODE
+#include <stdlib.h> // 为了使用strtoul函数
+#include "shell.h"  // 确保包含了letter_shell的头文件
+
+// letter_shell命令函数的包装器
+int _cmd(int argc, char **argv)
+{
+    /* 检查参数数量 */
+    if (argc != 3)
+    {
+        printf("Usage: dump_hex <address> <size>\r\n");
+        return -1;
+    }
+
+    /* 解析命令行参数 */
+    uint32_t address = (uint32_t)strtoul(argv[1], NULL, 0);
+    uint32_t size = strtoul(argv[2], NULL, 10);
+
+    /* 调用原始的dump_hex函数 */
+    dump_hex((const void *)address, size, 16);
+
+    return 0; // 返回0表示成功
+}
+// 注册命令到letter_shell
+SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0) | SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), dump_hex, _cmd, "Dump memory in hex");
+
+// 适配器函数，用于将memset_custom适配为shell命令
+int _cmd_memfill(int argc, char **argv)
+{
+    if (argc != 5)
+    {
+        printf("Usage: memfill <address> <value> <num> <byte*x>\r\n");
+        return -1; // 如果参数数量不正确，返回错误
+    }
+
+    void *ptr = (void *)strtoul(argv[1], NULL, 0); // 解析地址
+    uint64_t value = strtoull(argv[2], NULL, 0);   // 解析值
+    size_t num = strtoul(argv[3], NULL, 0);        // 解析数量
+    size_t size = strtoul(argv[4], NULL, 0);       // 解析每个值的大小
+
+    memfill(ptr, value, num, size); // 调用memset_custom函数
+
+    return 0; // 成功返回0
+}
+// 使用SHELL_EXPORT_CMD宏注册命令
+SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0) | SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN), memfill, _cmd_memfill, "fill memory");
+#endif
